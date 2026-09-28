@@ -223,6 +223,10 @@ input:focus-visible,select:focus-visible{outline:none}
 .bdg-ok{background:#e4f4ea;color:#1a7a4a}
 .bdg-off{background:#eceff2;color:#6b7580}
 .bdg-dem{background:#fbe9e7;color:#c0392b}
+.bdg-clt{background:#e3eefa;color:#1f5fa8;border:1px solid #bcd3ee}
+.bdg-mei{background:#f1e7f8;color:#7b3fa0;border:1px solid #dcc4ec}
+.erow.mei{box-shadow:inset 3px 0 0 #7b3fa0;padding-left:.75rem}
+.seg-full #evclt.on{background:#1f5fa8}.seg-full #evmei.on{background:#7b3fa0}
 .btn-dem{display:inline-flex;align-items:center;gap:5px;border:1.5px solid #f0c7c1;background:#fff;color:#c0392b;border-radius:7px;padding:.28rem .6rem;font-size:12px;font-weight:700;margin-right:4px}
 .btn-dem:hover{background:#fbe9e7;border-color:#c0392b}
 .btn-dem i{font-size:15px}
@@ -1479,17 +1483,19 @@ function rEmp(){
   DB.cc.forEach(function(cc){ccOpts+="<option value='"+cc.id+"'>"+esc(cc.cod)+" - "+esc(cc.desc)+"</option>";});
   var q=gv("ebsc");
   var nAt=DB.emp.filter(ativoVis).length,nAf=DB.emp.filter(function(e){return isAtivo(e)&&!vis(e);}).length,nIn=DB.emp.filter(function(e){return !isAtivo(e);}).length;
+  var nMei=DB.emp.filter(function(e){return isAtivo(e)&&empVinc(e)==="MEI";}).length,nClt=DB.emp.filter(function(e){return isAtivo(e);}).length-nMei;
   function segBtn(k,lb,n){return "<button class='seg-b"+(empFiltro===k?" on":"")+"' data-k='"+k+"' onclick=\"setEmpFiltro('"+k+"')\">"+lb+" <span class='seg-n'>"+n+"</span></button>";}
   document.getElementById("p-employees").innerHTML=
     "<div class='pg-hd'><div><h1 class='h1'>Colaboradores</h1>"
-    +"<div class='sub'>"+nAt+" ativo"+(nAt!==1?"s":"")+" &middot; "+nAf+" afastado"+(nAf!==1?"s":"")+" &middot; "+nIn+" inativo"+(nIn!==1?"s":"")+"</div></div>"
+    +"<div class='sub'>"+nAt+" ativo"+(nAt!==1?"s":"")+" &middot; "+nAf+" afastado"+(nAf!==1?"s":"")+" &middot; "+nIn+" inativo"+(nIn!==1?"s":"")
+    +" &nbsp;|&nbsp; <span style='color:#1f5fa8;font-weight:700'>"+nClt+" CLT</span> &middot; <span style='color:#7b3fa0;font-weight:700'>"+nMei+" MEI</span></div></div>"
     +"<div style='display:flex;gap:8px;flex-wrap:wrap'>"
     +"<button class='btng btn-ic' onclick='abrirEmpPDF()'><i class='ti ti-file-download'></i>PDF por centro de custo</button>"
     +"<button class='btnp btn-ic' onclick='novoEmp()'><i class='ti ti-user-plus'></i>Novo colaborador</button></div></div>"
     +"<div class='card'>"
     +"<div style='display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:.5rem'>"
     +"<div class='seg' id='efseg'>"+segBtn("ativos","Ativos",nAt)+segBtn("afastados","Afastados",nAf)+segBtn("inativos","Inativos",nIn)+segBtn("todos","Todos",DB.emp.length)+"</div>"
-    +"<input type='text' id='ebsc' value='"+esc(q)+"' placeholder='Buscar por nome ou funcao...' oninput='filtEmp()' style='width:260px;max-width:100%'/></div>"
+    +"<input type='text' id='ebsc' value='"+esc(q)+"' placeholder='Buscar por nome, funcao, CLT ou MEI...' oninput='filtEmp()' style='width:260px;max-width:100%'/></div>"
     +"<div id='elist'>"+rEmpList(empListaFiltrada(q))+"</div></div>"
     +mdShell("md-emp","Novo colaborador","eftt",
       "<input type='hidden' id='eid'/>"
@@ -1500,6 +1506,11 @@ function rEmp(){
       +"<div class='fr2'>"
       +"<div class='fr'><label class='lbl'>Data de aniversario <span class='opt'>(opcional)</span></label><input type='date' id='eaniv'/></div>"
       +"<div class='fr'><label class='lbl'>Centro de Custo <span class='opt'>(opcional)</span></label><select id='ecc'>"+ccOpts+"</select></div></div>"
+      +"<div class='fr'><label class='lbl'>Tipo de vinculo</label>"
+      +"<input type='hidden' id='evinc' value='CLT'/>"
+      +"<div class='seg seg-full'>"
+      +"<button type='button' id='evclt' class='seg-b on' onclick=\"setEmpVinc('CLT')\"><i class='ti ti-id-badge-2'></i>CLT</button>"
+      +"<button type='button' id='evmei' class='seg-b' onclick=\"setEmpVinc('MEI')\"><i class='ti ti-briefcase'></i>MEI - Prestador de servico</button></div></div>"
       +"<div class='fr'><label class='lbl'>Salario (R$) <span class='opt'>(opcional)</span></label><input type='number' id='esal' min='0' step='0.01' placeholder='Ex: 2500,00'/></div>"
       +"<div class='fr'><label class='lbl'>Situacao na empresa</label>"
       +"<input type='hidden' id='eativo' value='1'/>"
@@ -1519,7 +1530,7 @@ function empListaFiltrada(q){
     if(empFiltro==="ativos"&&!(a&&vis(e)))return false;
     if(empFiltro==="afastados"&&!(a&&!vis(e)))return false;
     if(empFiltro==="inativos"&&a)return false;
-    return !q||e.nome.toLowerCase().includes(q)||(e.func||"").toLowerCase().includes(q);
+    return !q||e.nome.toLowerCase().includes(q)||(e.func||"").toLowerCase().includes(q)||empVinc(e).toLowerCase()===q;
   }).sort(function(a,b){return a.nome.localeCompare(b.nome);});
 }
 function setEmpFiltro(k){
@@ -1535,8 +1546,8 @@ function rEmpList(list){
     var st=a?(empFiltro==="todos"&&vis(e)?"<span class='bdg bdg-ok'>ATIVO</span>":"")
       :(e.dem?"<span class='bdg bdg-dem'>DEMITIDO</span>":"<span class='bdg bdg-off'>INATIVO</span>");
     if(a&&afastadoEm(e,hoje()))st+=" <span class='bdg' style='background:#fdecd2;color:#8a5a00'>AFASTADO</span>";
-    return "<div class='erow"+(a?"":" off")+"'>"
-      +"<div class='erow-main'><div class='erow-nm'>"+esc(e.nome)+st+"</div>"
+    return "<div class='erow"+(a?"":" off")+(empVinc(e)==="MEI"?" mei":"")+"'>"
+      +"<div class='erow-main'><div class='erow-nm'>"+esc(e.nome)+vincBdg(e)+st+"</div>"
       +"<div class='erow-sub'>"+esc(e.func)+(cc?" &nbsp;&middot;&nbsp; <span style='color:"+BL+";font-weight:600'><i class='ti ti-building' style='font-size:11px'></i> "+esc(cc.cod)+"</span>":"")+"</div>"
       +"<div class='erow-meta'>Admissao: "+fmtD(e.adm)+" &middot; <strong style='color:"+B+"'>"+tEmp(e.adm,e.dem)+"</strong>"
       +(e.dem?"<span style='color:"+RED+"'> &middot; Demissao: "+fmtD(e.dem)+" &middot; "+esc(motDemNome(e.motdem))+"</span>":"")
@@ -1553,6 +1564,14 @@ function filtEmp(){
   el.innerHTML=rEmpList(empListaFiltrada(gv("ebsc")));
 }
 function novoEmp(){canEmp();openMd("md-emp");}
+function empVinc(e){return e&&e.vinc==="MEI"?"MEI":"CLT";}
+function vincBdg(e){return empVinc(e)==="MEI"?"<span class='bdg bdg-mei' title='Prestador de servico MEI'>MEI</span>":"<span class='bdg bdg-clt' title='Contratado CLT'>CLT</span>";}
+function setEmpVinc(v){
+  var h=document.getElementById("evinc");if(h)h.value=v;
+  var c=document.getElementById("evclt"),m=document.getElementById("evmei");
+  if(c)c.classList.toggle("on",v==="CLT");
+  if(m)m.classList.toggle("on",v==="MEI");
+}
 function setEmpAtivo(v){
   var h=document.getElementById("eativo");if(h)h.value=v;
   var b1=document.getElementById("eat1"),b0=document.getElementById("eat0");
@@ -1564,11 +1583,11 @@ function savEmp(){
   var nome=gv("enome").trim(),func=gv("efunc").trim(),ccid=gv("ecc"),adm=gv("eadm"),aniv=gv("eaniv");
   var salTx=gv("esal").trim(),sal=salTx===""?null:parseFloat(salTx.replace(",","."));
   if(sal!==null&&(isNaN(sal)||sal<0)){alert("Informe um salario valido.");return;}
-  var ativo=gv("eativo")==="1";
+  var ativo=gv("eativo")==="1",vinc=gv("evinc")==="MEI"?"MEI":"CLT";
   if(!nome||!func||!adm){alert("Preencha nome, funcao e admissao.");return;}
   var old=id?DB.emp.find(function(e){return e.id===id;}):null;
   if(old&&old.dem&&ativo&&!confirm(nome+" esta demitido. Marcar como ativo cancela a demissao. Continuar?"))return;
-  var obj=Object.assign({},old||{dem:""},{id:id||uid(),nome:nome,func:func,ccid:ccid,adm:adm,aniv:aniv,ativo:ativo});
+  var obj=Object.assign({},old||{dem:""},{id:id||uid(),nome:nome,func:func,ccid:ccid,adm:adm,aniv:aniv,ativo:ativo,vinc:vinc});
   if(sal===null)delete obj.sal;else obj.sal=+sal.toFixed(2);
   if(ativo){obj.dem="";delete obj.motdem;delete obj.obsdem;delete obj.inat;}
   else if(!obj.dem&&!obj.inat){obj.inat=hoje();}
@@ -1588,6 +1607,7 @@ function edtEmp(id){
   document.getElementById("eftt").textContent="Editar colaborador";
   document.getElementById("esav").textContent="Salvar alteracoes";
   setEmpAtivo(isAtivo(e)?"1":"0");
+  setEmpVinc(empVinc(e));
   var area=document.getElementById("edemarea");
   area.innerHTML=empExtraArea(e);
   openMd("md-emp");
@@ -1599,6 +1619,7 @@ function canEmp(){
   var btn=document.getElementById("esav");if(btn)btn.textContent="Cadastrar";
   var area=document.getElementById("edemarea");if(area)area.innerHTML="";
   setEmpAtivo("1");
+  setEmpVinc("CLT");
   closeMd("md-emp");
 }
 function delEmp(id){
@@ -2888,7 +2909,8 @@ function gerarEmpPDF(orient){
   if(semCC.length)grupos.push({lb:"Sem centro de custo",emps:semCC});
   grupos=grupos.filter(function(g){return g.emps.length;});
   // colunas (a ultima absorve a sobra da largura)
-  var cols=[{h:"#",k:"i",w:8,al:"c"},{h:"Colaborador",k:"nome",w:retrato?58:92,b:true,cor:function(){return C.b;}},{h:"Função",k:"func",w:retrato?38:62},
+  var cols=[{h:"#",k:"i",w:8,al:"c"},{h:"Colaborador",k:"nome",w:retrato?46:92,b:true,cor:function(){return C.b;}},{h:"Função",k:"func",w:retrato?34:62},
+    {h:"Vínculo",k:"vinc",w:14,al:"c",cor:function(r){return r.vinc==="MEI"?[123,63,160]:[31,95,168];}},
     {h:"Admissão",k:"adm",w:20,al:"c"},{h:"Tempo de empresa",k:"tempo",w:retrato?24:30,al:"c"}];
   if(sit!=="ativos")cols.push({h:"Situação",k:"sit",w:retrato?18:24,al:"c",cor:function(r){return r.sit==="Ativo"?C.grn:C.mut;}});
   if(comSal)cols.push({h:"Salário",k:"sal",w:24,al:"r"});
@@ -2899,7 +2921,7 @@ function gerarEmpPDF(orient){
     var tot=0;
     var rows=g.emps.slice().sort(function(a,b){return a.nome.localeCompare(b.nome);}).map(function(e,i){
       var sv=typeof e.sal==="number"?e.sal:null;if(sv)tot+=sv;
-      return{i:i+1,nome:e.nome,func:e.func||"",adm:fmtD(e.adm),tempo:e.adm?tEmp(e.adm,e.dem):"",sit:isAtivo(e)?"Ativo":(e.dem?"Demitido":"Inativo"),sal:sv===null?"-":fmtBRL(sv)};
+      return{i:i+1,nome:e.nome,func:e.func||"",vinc:empVinc(e),adm:fmtD(e.adm),tempo:e.adm?tEmp(e.adm,e.dem):"",sit:isAtivo(e)?"Ativo":(e.dem?"Demitido":"Inativo"),sal:sv===null?"-":fmtBRL(sv)};
     });
     totGeral+=tot;
     if(comSal){var tr={_total:true,nome:"Total do centro de custo",sal:fmtBRL(tot)};rows.push(tr);}
