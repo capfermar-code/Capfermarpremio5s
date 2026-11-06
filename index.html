@@ -300,6 +300,23 @@ input:focus-visible,select:focus-visible{outline:none}
 .apr-sl{position:relative;aspect-ratio:16/9;container-type:inline-size;overflow:hidden;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.14);background:#fff;font-family:Arial,Helvetica,sans-serif}
 .apr-n{font-size:11px;color:#888;font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px}
 @media (max-width:560px){.apr-grid{grid-template-columns:1fr}}
+/* Recibo do premio */
+.rec-list{display:flex;flex-direction:column;gap:1rem;max-width:980px}
+.rec-hd{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;border-bottom:3px solid var(--blue);padding-bottom:.7rem;margin-bottom:.9rem}
+.rec-tt{font-size:17px;font-weight:800;color:var(--deep)}
+.rec-info{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 16px;margin-bottom:.9rem}
+.rec-info span,.rec-kp span{display:block;font-size:10px;font-weight:700;color:#8a94a0;text-transform:uppercase;letter-spacing:.4px}
+.rec-info b{font-size:13px;color:#2a2e33}
+.rec-kp{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:.9rem}
+.rec-kp>div{border:1.5px solid var(--line);border-top-width:3px;border-radius:10px;padding:.6rem .8rem}
+.rec-kp b{font-size:18px;font-weight:800}
+.rec-tb th{background:var(--deep);color:#fff}
+.rec-tb tfoot td{background:#fde8e9;font-weight:800;color:var(--deep)}
+.rec-decl{background:#f7f5f5;border-radius:8px;padding:.7rem .9rem;font-size:12.5px;color:#444;line-height:1.5;margin:.9rem 0 2.2rem}
+.rec-ass{display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;text-align:center}
+.rec-ln{border-top:1.5px solid #231F20;margin-bottom:5px}
+.rec-ass b{display:block;font-size:13px}.rec-ass span{font-size:11px;color:#888}
+@media (max-width:560px){.rec-kp,.rec-ass{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -355,6 +372,7 @@ input:focus-visible,select:focus-visible{outline:none}
       <button class="nb" id="nb-motivos" onclick="go('motivos')"><i class="ti ti-tags" style="font-size:18px;flex-shrink:0"></i><span class="nl">Motivos</span></button>
       <button class="nb" id="nb-relatorio" onclick="go('relatorio')"><i class="ti ti-chart-bar" style="font-size:18px;flex-shrink:0"></i><span class="nl">Relatorios</span></button>
       <button class="nb" id="nb-apresentacao" onclick="go('apresentacao')"><i class="ti ti-presentation" style="font-size:18px;flex-shrink:0"></i><span class="nl">Apresentacao</span></button>
+      <button class="nb" id="nb-recibo" onclick="go('recibo')"><i class="ti ti-receipt" style="font-size:18px;flex-shrink:0"></i><span class="nl">Recibos</span></button>
       <button class="nb" id="nb-calendario" onclick="go('calendario')"><i class="ti ti-calendar-heart" style="font-size:18px;flex-shrink:0"></i><span class="nl">Aniversarios</span></button>
       <button class="nb" id="nb-backup" onclick="go('backup')"><i class="ti ti-database" style="font-size:18px;flex-shrink:0"></i><span class="nl">Backup</span></button>
     </nav>
@@ -376,6 +394,7 @@ input:focus-visible,select:focus-visible{outline:none}
     <div id="p-motivos" class="page"></div>
     <div id="p-relatorio" class="page"></div>
     <div id="p-apresentacao" class="page"></div>
+    <div id="p-recibo" class="page"></div>
     <div id="p-calendario" class="page"></div>
     <div id="p-backup" class="page"></div>
   </div>
@@ -841,7 +860,7 @@ function go(p){
   document.getElementById("p-"+p).classList.add("active");
   document.getElementById("nb-"+p).classList.add("on");
   pg=p;
-  ({dashboard:rDash,centros:rCC,employees:rEmp,monitor:rMon,"5s":r5S,lancamento:rLanc,premios:rPrem,indices:rIdx,motivos:rMotivos,relatorio:rRel,apresentacao:rApr,calendario:rCal,backup:function(){BKP_LISTA=null;rBkp();}})[p]();
+  ({dashboard:rDash,centros:rCC,employees:rEmp,monitor:rMon,"5s":r5S,lancamento:rLanc,premios:rPrem,indices:rIdx,motivos:rMotivos,relatorio:rRel,apresentacao:rApr,recibo:rRec,calendario:rCal,backup:function(){BKP_LISTA=null;rBkp();}})[p]();
 }
 function toggleSB(){
   sbOpen=!sbOpen;
@@ -4305,6 +4324,203 @@ function baixarApresentacao(){
     }catch(e){alert("Erro ao gerar a apresentação: "+e.message);fim();}
   });
   setTimeout(function(){if(!window.PptxGenJS)fim();},15000);
+}
+
+
+
+// ═══ RECIBO DO PREMIO CARTAO (por colaborador, com assinaturas) ═══
+var REC={ano:"",mes:null,eid:""};
+var REC_TIPO={falta:"Falta",atraso:"Atraso","5s":"Infração 5S"};
+function recExtenso(v){
+  var U=["","um","dois","três","quatro","cinco","seis","sete","oito","nove","dez","onze","doze","treze","quatorze","quinze","dezesseis","dezessete","dezoito","dezenove"];
+  var D=["","","vinte","trinta","quarenta","cinquenta","sessenta","setenta","oitenta","noventa"];
+  var C=["","cento","duzentos","trezentos","quatrocentos","quinhentos","seiscentos","setecentos","oitocentos","novecentos"];
+  function ate999(n){
+    if(n===100)return "cem";
+    var p=[],c=Math.floor(n/100),d=n%100;
+    if(c)p.push(C[c]);
+    if(d)p.push(d<20?U[d]:D[Math.floor(d/10)]+(d%10?" e "+U[d%10]:""));
+    return p.join(" e ");
+  }
+  function inteiro(n){
+    var g=[],mi=Math.floor(n/1e6),mil=Math.floor(n%1e6/1000),r=n%1000;
+    if(mi)g.push(ate999(mi)+(mi>1?" milhões":" milhão"));
+    if(mil)g.push(mil===1?"mil":ate999(mil)+" mil");
+    if(r)g.push(ate999(r));
+    var s=g[0]||"";
+    for(var i=1;i<g.length;i++){var ult=i===g.length-1&&r&&(r<100||r%100===0);s+=(ult?" e ":" ")+g[i];}
+    return s;
+  }
+  var t=Math.round((v||0)*100),r=Math.floor(t/100),c=t%100,s="";
+  if(r)s=inteiro(r)+(r%1e6===0?" de":"")+(r===1?" real":" reais");
+  if(c)s+=(s?" e ":"")+ate999(c)+(c===1?" centavo":" centavos");
+  return s||"zero real";
+}
+// Recibos do mes: premio, descontos por ocorrencia (com motivo) e valor a receber
+function recDados(m,se){
+  var R=relMes(m,se);
+  return R.linhas.slice().sort(function(a,b){return a.emp.nome.localeCompare(b.emp.nome);}).map(function(l){
+    var e=l.emp,cc=e.ccid?DB.cc.find(function(c){return c.id===e.ccid;}):null;
+    var ocs=DB.oc.filter(function(o){return o.eid===e.id&&gmk(o.data)===m;}).sort(function(a,b){return a.data.localeCompare(b.data);});
+    var raw=0,ps=ocs.map(function(o){var p=getPct(o.tipo,o.data);raw+=p;return p;});
+    var f=raw>100?100/raw:1;
+    var itens=ocs.map(function(o,i){
+      return {data:o.data,tipo:o.tipo,lb:REC_TIPO[o.tipo]||o.tipo,mot:o.tipo==="5s"?"Infração 5S":lblMotivo(o),obs:o.obs||"",p:ps[i],v:l.val*ps[i]/100*f};
+    });
+    return {emp:e,cc:cc,val:l.val,desc:l.desc,rec:l.rec,pct:l.pct,f:l.f,a:l.a,s:l.s,itens:itens,limitado:raw>100};
+  });
+}
+function recPer(m){var p=m.split("-");return MESL[+p[1]-1]+"/"+p[0];}
+function recDecl(r,m){
+  return "Declaro que recebi o valor de "+fmtBRL(r.rec)+" ("+recExtenso(r.rec)+"), referente ao Prêmio Cartão da competência "+recPer(m)
+    +", e que fui informado(a) dos ganhos, das perdas e dos motivos dos descontos descritos neste recibo.";
+}
+
+// ---- Tela ----
+function recSet(k,v){REC[k]=v;rRec();}
+function rRec(){
+  killCH();
+  var anoAtual=String(new Date().getFullYear());
+  if(!REC.ano)REC.ano=anoAtual;
+  if(REC.mes===null)REC.mes=curMes().slice(5);
+  var lim=aprLimMes(REC.ano)||1;
+  if(+REC.mes>lim)REC.mes=String(lim).padStart(2,"0");
+  var m=REC.ano+"-"+REC.mes;
+  var anos={};anos[anoAtual]=1;DB.oc.forEach(function(o){if(o.data)anos[o.data.slice(0,4)]=1;});
+  var anoOpts=Object.keys(anos).sort().reverse().map(function(a){return "<option value='"+a+"'"+(a===REC.ano?" selected":"")+">"+a+"</option>";}).join("");
+  var mesOpts="";for(var i=1;i<=lim;i++){var v=String(i).padStart(2,"0");mesOpts+="<option value='"+v+"'"+(v===REC.mes?" selected":"")+">"+MESL[i-1]+"</option>";}
+  var todos=recDados(m,"");
+  if(REC.eid&&!todos.some(function(r){return r.emp.id===REC.eid;}))REC.eid="";
+  var lista=REC.eid?todos.filter(function(r){return r.emp.id===REC.eid;}):todos;
+  var eOpts="<option value=''>Todos os colaboradores ("+todos.length+")</option>"+todos.map(function(r){return "<option value='"+r.emp.id+"'"+(r.emp.id===REC.eid?" selected":"")+">"+esc(r.emp.nome)+"</option>";}).join("");
+  var selSt="border:none;outline:none;box-shadow:none;font-size:13px;color:"+B+";font-weight:700;background:transparent;width:auto;padding:0";
+  function box(ic,lb,inner){return "<div style='display:flex;align-items:center;gap:6px;background:#fff;border:1.5px solid #e3dfdf;border-radius:8px;padding:.35rem .7rem'><i class='ti "+ic+"' style='color:#888;font-size:15px'></i><span style='font-size:12px;color:#555;font-weight:600'>"+lb+"</span>"+inner+"</div>";}
+
+  var cards=lista.length===0?"<div class='card'><div class='empty'><i class='ti ti-receipt-off'></i>Nenhum colaborador com prêmio em "+esc(recPer(m))+".</div></div>":
+    lista.map(function(r){
+      var e=r.emp;
+      var linhas="<tr><td colspan='4' style='font-weight:700'>Prêmio Cartão - valor integral</td><td></td><td style='text-align:right;color:"+GRN+";font-weight:800'>+"+fmtBRL(r.val)+"</td></tr>"
+        +(r.itens.length?r.itens.map(function(it){
+          var cor=it.tipo==="falta"?RED:it.tipo==="atraso"?"#b07d0a":PUR;
+          return "<tr><td>"+fmtD(it.data)+"</td><td><span class='bdg' style='margin:0;background:"+cor+"18;color:"+cor+"'>"+esc(it.lb)+"</span></td>"
+            +"<td>"+esc(it.mot)+"</td><td style='color:#777;white-space:normal'>"+esc(it.obs)+"</td>"
+            +"<td style='text-align:center;color:"+RED+"'>-"+aprP(it.p)+"</td><td style='text-align:right;color:"+RED+";font-weight:700'>-"+fmtBRL(it.v)+"</td></tr>";
+        }).join(""):"<tr><td colspan='6' style='color:"+GRN+";font-weight:700;text-align:center;padding:.7rem'><i class='ti ti-circle-check'></i> Nenhuma falta ou atraso no mês - prêmio integral</td></tr>");
+      return "<div class='card rec-card'>"
+        +"<div class='rec-hd'><div><div class='rec-tt'>Recibo do Prêmio Cartão</div><div class='sub'>Competência "+esc(recPer(m))+"</div></div>"
+        +"<button class='btng btn-ic' onclick=\"gerarRecibosPDF('"+e.id+"')\"><i class='ti ti-file-download'></i>PDF deste recibo</button></div>"
+        +"<div class='rec-info'>"
+        +"<div><span>Colaborador</span><b>"+esc(e.nome)+"</b></div>"
+        +"<div><span>Função</span><b>"+esc(e.func||"—")+"</b></div>"
+        +"<div><span>Centro de custo</span><b>"+(r.cc?esc(r.cc.cod+" - "+r.cc.desc):"—")+"</b></div>"
+        +"<div><span>Admissão</span><b>"+(e.adm?fmtD(e.adm):"—")+"</b></div></div>"
+        +"<div class='rec-kp'>"
+        +"<div style='border-color:"+B+"'><span>Prêmio previsto</span><b style='color:"+B+"'>"+fmtBRL(r.val)+"</b></div>"
+        +"<div style='border-color:"+RED+"'><span>Perdas ("+aprP(r.pct)+")</span><b style='color:"+RED+"'>"+(r.desc>0.004?"-"+fmtBRL(r.desc):fmtBRL(0))+"</b></div>"
+        +"<div style='border-color:"+GRN+"'><span>Valor a receber</span><b style='color:"+GRN+"'>"+fmtBRL(r.rec)+"</b></div></div>"
+        +"<div style='overflow-x:auto'><table class='rec-tb'><thead><tr><th>Data</th><th>Tipo</th><th>Motivo</th><th>Observação</th><th style='text-align:center'>% desc.</th><th style='text-align:right'>Valor</th></tr></thead><tbody>"+linhas+"</tbody>"
+        +"<tfoot><tr><td colspan='5'>VALOR A RECEBER</td><td style='text-align:right;color:"+GRN+"'>"+fmtBRL(r.rec)+"</td></tr></tfoot></table></div>"
+        +(r.limitado?"<div class='hint'>A soma dos descontos passou de 100%; os valores foram limitados ao prêmio do mês.</div>":"")
+        +"<div class='rec-decl'>"+esc(recDecl(r,m))+"</div>"
+        +"<div class='rec-ass'><div><div class='rec-ln'></div><b>"+esc(e.nome)+"</b><span>Colaborador</span></div>"
+        +"<div><div class='rec-ln'></div><b>"+esc(r.cc&&r.cc.resp?r.cc.resp:"Coordenador(a)")+"</b><span>Coordenador(a) / Responsável</span></div></div>"
+        +"</div>";
+    }).join("");
+
+  document.getElementById("p-recibo").innerHTML=
+    "<div class='pg-hd'><div><h1 class='h1'>Recibo do Prêmio</h1>"
+    +"<div class='sub'>Ganhos, perdas e motivos por colaborador, com assinatura do colaborador e do coordenador &middot; "+esc(recPer(m))+"</div></div>"
+    +"<button class='btnp btn-ic' onclick=\"gerarRecibosPDF('')\""+(lista.length?"":" disabled")+"><i class='ti ti-printer'></i>Gerar PDF "+(lista.length>1?"("+lista.length+" recibos)":"do recibo")+"</button></div>"
+    +"<div style='display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:1.1rem'>"
+    +box("ti-calendar","Ano:","<select id='rec-ano' onchange=\"recSet('ano',this.value)\" style='"+selSt+"'>"+anoOpts+"</select>")
+    +box("ti-calendar-event","Mês:","<select id='rec-mes' onchange=\"recSet('mes',this.value)\" style='"+selSt+"'>"+mesOpts+"</select>")
+    +"<select id='rec-emp' onchange=\"recSet('eid',this.value)\" style='width:300px;max-width:100%;padding:.45rem .7rem;font-size:13px'>"+eOpts+"</select>"
+    +"</div>"
+    +"<div class='rec-list'>"+cards+"</div>";
+}
+
+// ---- PDF (A4 retrato, um recibo por pagina) ----
+function gerarRecibosPDF(eid){
+  if(!(window.jspdf&&window.jspdf.jsPDF)){alert("A biblioteca de PDF ainda esta carregando. Aguarde alguns segundos e tente novamente.");return;}
+  var m=REC.ano+"-"+REC.mes;
+  var lista=recDados(m,"");
+  var alvo=eid||REC.eid;
+  if(alvo)lista=lista.filter(function(r){return r.emp.id===alvo;});
+  if(!lista.length){alert("Nenhum recibo para gerar.");return;}
+  var doc=new window.jspdf.jsPDF({unit:"mm",format:"a4",orientation:"portrait",compress:true});
+  var W=210,H=297,mg=14,cw=W-mg*2;
+  var C={ink:[22,20,21],b:[181,0,13],bl:[237,0,16],red:[192,57,43],grn:[26,122,74],gld:[176,125,10],pur:[123,63,160],line:[227,223,223],txt:[55,55,55],mut:[130,130,130],bg:[247,245,245]};
+  function fill(c){doc.setFillColor(c[0],c[1],c[2]);}
+  function txt(c){doc.setTextColor(c[0],c[1],c[2]);}
+  function draw(c){doc.setDrawColor(c[0],c[1],c[2]);}
+  function font(sz,b){doc.setFont("helvetica",b?"bold":"normal");doc.setFontSize(sz);}
+  function cut(s,w){s=String(s||"");while(s.length>2&&doc.getTextWidth(s)>w)s=s.slice(0,-2);return s;}
+  var per=recPer(m),emis=new Date().toLocaleDateString("pt-BR");
+  function header(r){
+    fill(C.ink);doc.rect(0,0,W,26,"F");fill(C.bl);doc.rect(0,26,W,1.2,"F");
+    if(window._logoPNG)doc.addImage(window._logoPNG,"PNG",mg,6,55.2,12);
+    else{font(18,true);txt([255,255,255]);doc.text("FERMAR",mg,16);}
+    font(15,true);txt([255,255,255]);doc.text("Recibo do Prêmio Cartão",W-mg,12,{align:"right"});
+    font(9);txt([205,212,222]);doc.text("Competência: "+per,W-mg,18,{align:"right"});
+    font(7);txt([165,175,190]);doc.text("Emitido em "+emis,W-mg,22.5,{align:"right"});
+    return 34;
+  }
+  lista.forEach(function(r,idx){
+    if(idx)doc.addPage();
+    var e=r.emp,y=header(r);
+    // dados do colaborador
+    doc.setLineWidth(.3);draw(C.line);fill([255,255,255]);doc.roundedRect(mg,y,cw,20,2,2,"FD");
+    var cols=[["Colaborador",e.nome,74],["Função",e.func||"—",40],["Centro de custo",r.cc?r.cc.cod+" - "+r.cc.desc:"—",42],["Admissão",e.adm?fmtD(e.adm):"—",26]];
+    var cx=mg+4;
+    cols.forEach(function(c){font(6.8,true);txt(C.mut);doc.text(c[0].toUpperCase(),cx,y+7);font(9.5,true);txt(C.ink);doc.text(cut(c[1],c[2]-4),cx,y+13.5);cx+=c[2];});
+    y+=26;
+    // resumo
+    var kw=(cw-8)/3,ks=[["Prêmio previsto",fmtBRL(r.val),C.b],["Perdas ("+aprP(r.pct)+")",r.desc>0.004?"-"+fmtBRL(r.desc):fmtBRL(0),C.red],["Valor a receber",fmtBRL(r.rec),C.grn]];
+    ks.forEach(function(k,i){
+      var x=mg+i*(kw+4);fill([255,255,255]);draw(C.line);doc.roundedRect(x,y,kw,19,2,2,"FD");fill(k[2]);doc.rect(x+1.5,y,kw-3,1.2,"F");
+      font(6.8,true);txt(C.mut);doc.text(k[0].toUpperCase(),x+4,y+7);font(14,true);txt(k[2]);doc.text(k[1],x+4,y+14.5);
+    });
+    y+=26;
+    // ganhos e perdas
+    fill(C.b);doc.rect(mg,y-3.1,2.2,2.2,"F");font(10.5,true);txt([45,45,45]);doc.text("Ganhos e perdas do mês",mg+4.5,y);y+=4;
+    var tc=[{h:"Data",w:20},{h:"Tipo",w:22},{h:"Motivo",w:50},{h:"Observação",w:48},{h:"% desc.",w:17,al:"c"},{h:"Valor",w:25,al:"r"}],rh=6.4;
+    function tx(c,x){return c.al==="r"?x+c.w-2:c.al==="c"?x+c.w/2:x+2;}
+    function al(c){return c.al==="r"?"right":c.al==="c"?"center":"left";}
+    function thead(){fill(C.b);doc.rect(mg,y,cw,rh,"F");font(7.5,true);txt([255,255,255]);var x=mg;tc.forEach(function(c){doc.text(c.h,tx(c,x),y+4.3,{align:al(c)});x+=c.w;});y+=rh;}
+    function row(vals,cores,bold,bg){
+      if(y+rh>H-70){doc.addPage();y=header(r);font(8,true);txt(C.mut);doc.text(e.nome+" (continuação)",mg,y);y+=4;thead();}
+      if(bg){fill(bg);doc.rect(mg,y,cw,rh,"F");}
+      var x=mg;tc.forEach(function(c,i){font(8,bold&&bold[i]);txt(cores&&cores[i]||C.txt);doc.text(cut(vals[i],c.w-3),tx(c,x),y+4.3,{align:al(c)});x+=c.w;});
+      draw(C.line);doc.setLineWidth(.2);doc.line(mg,y+rh,mg+cw,y+rh);y+=rh;
+    }
+    thead();
+    row(["","Prêmio","Prêmio Cartão - valor integral","","","+"+fmtBRL(r.val)],[0,C.ink,C.ink,0,0,C.grn],[0,1,1,0,0,1],[236,246,240]);
+    if(r.itens.length){
+      r.itens.forEach(function(it,i){
+        var cor=it.tipo==="falta"?C.red:it.tipo==="atraso"?C.gld:C.pur;
+        row([fmtD(it.data),it.lb,it.mot,it.obs,"-"+aprP(it.p),"-"+fmtBRL(it.v)],[0,cor,0,C.mut,C.red,C.red],[0,1,0,0,0,1],i%2?[251,249,249]:null);
+      });
+    }else{
+      fill([236,246,240]);doc.rect(mg,y,cw,rh,"F");font(8,true);txt(C.grn);doc.text("Nenhuma falta ou atraso no mês - prêmio integral",mg+cw/2,y+4.3,{align:"center"});y+=rh;
+    }
+    fill([253,232,233]);doc.rect(mg,y,cw,rh+.6,"F");font(8.5,true);txt(C.b);doc.text("VALOR A RECEBER",mg+2,y+4.6);txt(C.grn);doc.text(fmtBRL(r.rec),mg+cw-2,y+4.6,{align:"right"});y+=rh+.6;
+    if(r.limitado){y+=4;font(7);txt(C.mut);doc.text("A soma dos descontos passou de 100%; os valores foram limitados ao prêmio do mês.",mg,y);}
+    // declaracao + assinaturas
+    if(y>H-70){doc.addPage();y=header(r);}
+    y=Math.max(y+10,H-68);
+    fill(C.bg);doc.roundedRect(mg,y,cw,20,2,2,"F");
+    font(9);txt(C.txt);doc.text(doc.splitTextToSize(recDecl(r,m),cw-8),mg+4,y+6.5);
+    font(8.5);txt(C.mut);doc.text("Local e data: ______________________________,  ____/____/________",mg,y+29);
+    var sy=y+50,sw=(cw-16)/2;
+    [[e.nome,"Colaborador"],[r.cc&&r.cc.resp?r.cc.resp:"","Coordenador(a) / Responsável"]].forEach(function(a,i){
+      var x=mg+i*(sw+16);draw(C.ink);doc.setLineWidth(.35);doc.line(x,sy,x+sw,sy);
+      font(9,true);txt(C.ink);doc.text(cut(a[0]||"Nome:",sw),x+sw/2,sy+4.5,{align:"center"});
+      font(7.5);txt(C.mut);doc.text(a[1],x+sw/2,sy+8.5,{align:"center"});
+    });
+    font(6.5);txt([170,170,170]);doc.text("Prêmio Cartão Fermar · "+per+" · Recibo "+(idx+1)+" de "+lista.length,W/2,H-6,{align:"center"});
+  });
+  var nm=lista.length===1?"-"+lista[0].emp.nome.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""):"";
+  doc.save("recibo-premio-"+m+nm+".pdf");
 }
 
 </script>
