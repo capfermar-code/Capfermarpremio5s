@@ -295,6 +295,11 @@ input:focus-visible,select:focus-visible{outline:none}
 #lgw::after{background:linear-gradient(90deg,var(--deep),var(--blue))}
 .h1,.mdl-tt{color:var(--ink)}
 .nb.on{background:rgba(237,0,16,.16)}
+/* Apresentacao (previa dos slides) */
+.apr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:1rem}
+.apr-sl{position:relative;aspect-ratio:16/9;container-type:inline-size;overflow:hidden;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.14);background:#fff;font-family:Arial,Helvetica,sans-serif}
+.apr-n{font-size:11px;color:#888;font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px}
+@media (max-width:560px){.apr-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -349,6 +354,7 @@ input:focus-visible,select:focus-visible{outline:none}
       <button class="nb" id="nb-indices" onclick="go('indices')"><i class="ti ti-adjustments" style="font-size:18px;flex-shrink:0"></i><span class="nl">Indices</span></button>
       <button class="nb" id="nb-motivos" onclick="go('motivos')"><i class="ti ti-tags" style="font-size:18px;flex-shrink:0"></i><span class="nl">Motivos</span></button>
       <button class="nb" id="nb-relatorio" onclick="go('relatorio')"><i class="ti ti-chart-bar" style="font-size:18px;flex-shrink:0"></i><span class="nl">Relatorios</span></button>
+      <button class="nb" id="nb-apresentacao" onclick="go('apresentacao')"><i class="ti ti-presentation" style="font-size:18px;flex-shrink:0"></i><span class="nl">Apresentacao</span></button>
       <button class="nb" id="nb-calendario" onclick="go('calendario')"><i class="ti ti-calendar-heart" style="font-size:18px;flex-shrink:0"></i><span class="nl">Aniversarios</span></button>
       <button class="nb" id="nb-backup" onclick="go('backup')"><i class="ti ti-database" style="font-size:18px;flex-shrink:0"></i><span class="nl">Backup</span></button>
     </nav>
@@ -369,6 +375,7 @@ input:focus-visible,select:focus-visible{outline:none}
     <div id="p-indices" class="page"></div>
     <div id="p-motivos" class="page"></div>
     <div id="p-relatorio" class="page"></div>
+    <div id="p-apresentacao" class="page"></div>
     <div id="p-calendario" class="page"></div>
     <div id="p-backup" class="page"></div>
   </div>
@@ -834,7 +841,7 @@ function go(p){
   document.getElementById("p-"+p).classList.add("active");
   document.getElementById("nb-"+p).classList.add("on");
   pg=p;
-  ({dashboard:rDash,centros:rCC,employees:rEmp,monitor:rMon,"5s":r5S,lancamento:rLanc,premios:rPrem,indices:rIdx,motivos:rMotivos,relatorio:rRel,calendario:rCal,backup:function(){BKP_LISTA=null;rBkp();}})[p]();
+  ({dashboard:rDash,centros:rCC,employees:rEmp,monitor:rMon,"5s":r5S,lancamento:rLanc,premios:rPrem,indices:rIdx,motivos:rMotivos,relatorio:rRel,apresentacao:rApr,calendario:rCal,backup:function(){BKP_LISTA=null;rBkp();}})[p]();
 }
 function toggleSB(){
   sbOpen=!sbOpen;
@@ -3867,6 +3874,437 @@ function rBkp(){
     +"</div></div>"
     +"<div class='card'><div style='font-weight:700;font-size:15px;color:"+B+";margin-bottom:.75rem'>Backups guardados</div>"+rows+"</div>";
   if(lista===null)bkpListar().then(rBkp).catch(function(e){BKP_ERRO=e.message;BKP_LISTA=[];rBkp();});
+}
+
+
+
+// ═══ APRESENTACAO (PPTX) - PREMIO CARTAO: explicacao das perdas para os colaboradores ═══
+var APR={ano:"",mes:null,nomes:true};
+var APR_LIB="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js";
+var APR_W=10,APR_H=5.625,APR_FONT="Arial";
+var MESL=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+var APC={ink:"231F20",steel:"161415",bl:"ED0010",b:"B5000D",red:"C0392B",grn:"1A7A4A",gld:"E6A817",pur:"7B3FA0",org:"D35400",line:"E3DFDF",bg:"F7F5F5",txt:"333333",mut:"8A8A8A"};
+
+function aprLoadLib(cb){
+  if(window.PptxGenJS){if(cb)cb();return;}
+  if(window._aprLoading){if(cb)window._aprLoading.push(cb);return;}
+  window._aprLoading=cb?[cb]:[];
+  var s=document.createElement("script");s.src=APR_LIB;
+  s.onload=function(){var l=window._aprLoading||[];window._aprLoading=null;l.forEach(function(f){f();});};
+  s.onerror=function(){window._aprLoading=null;s.remove();if(cb)alert("Nao foi possivel carregar a biblioteca do PowerPoint. Verifique a internet e tente novamente.");};
+  document.head.appendChild(s);
+}
+function aprHex(c){return String(c||"000000").replace("#","").toUpperCase();}
+function aprP(v){return (v||0).toLocaleString("pt-BR",{maximumFractionDigits:1})+"%";}
+function aprNome(n){var w=String(n||"").split(" - ")[0].trim().split(/\s+/);var k=/^(DA|DE|DO|DOS|DAS|E)$/i.test(w[1]||"")?3:2;return w.slice(0,k).join(" ");}
+function aprRuns(t,o){
+  o=o||{};
+  var base={size:o.size||14,bold:!!o.bold,color:o.color||APC.ink,italic:!!o.italic};
+  if(!Array.isArray(t))return [Object.assign({t:String(t==null?"":t)},base)];
+  return t.map(function(r){return Object.assign({},base,r,{t:String(r.t==null?"":r.t)});});
+}
+
+// ---- "Tela" de desenho: mesma funcao gera a previa (HTML) e o PowerPoint ----
+function aprCanvasHTML(){
+  var out=[];
+  function pos(x,y,w,h){return "left:"+(x/APR_W*100)+"%;top:"+(y/APR_H*100)+"%;width:"+(w/APR_W*100)+"%;height:"+(h/APR_H*100)+"%;";}
+  function fs(pt){return (pt*100/720).toFixed(3)+"cqw";}
+  return {
+    bg:function(c){out.push("<div style='position:absolute;inset:0;background:#"+aprHex(c)+"'></div>");},
+    rect:function(x,y,w,h,o){
+      o=o||{};
+      out.push("<div style='position:absolute;box-sizing:border-box;"+pos(x,y,w,h)
+        +"background:"+(o.fill?"#"+aprHex(o.fill):"transparent")+";"
+        +(o.line?"border:"+fs(o.lw||.75)+" solid #"+aprHex(o.line)+";":"")
+        +(o.r?"border-radius:"+(o.r*10)+"cqw;":"")
+        +(o.alpha?"opacity:"+(1-o.alpha/100)+";":"")+"'></div>");
+    },
+    text:function(t,x,y,w,h,o){
+      o=o||{};
+      var jc=o.valign==="top"?"flex-start":o.valign==="bottom"?"flex-end":"center";
+      var inner=aprRuns(t,o).map(function(r){
+        return "<span style='font-size:"+fs(r.size)+";font-weight:"+(r.bold?700:400)+";color:#"+aprHex(r.color)+(r.italic?";font-style:italic":"")+"'>"+esc(r.t)+"</span>"+(r.br?"<br>":"");
+      }).join("");
+      out.push("<div style='position:absolute;"+pos(x,y,w,h)+"display:flex;flex-direction:column;justify-content:"+jc+";text-align:"+(o.align||"left")+";line-height:1.2;overflow:hidden'><div>"+inner+"</div></div>");
+    },
+    img:function(src,x,y,w,h){if(src)out.push("<img src='"+src+"' alt='' style='position:absolute;"+pos(x,y,w,h)+"object-fit:contain'>");},
+    table:function(rows,x,y,o){
+      var tw=o.colW.reduce(function(a,c){return a+c;},0);
+      var h="<table style='position:absolute;left:"+(x/APR_W*100)+"%;top:"+(y/APR_H*100)+"%;width:"+(tw/APR_W*100)+"%;border-collapse:collapse;table-layout:fixed'>"
+        +"<colgroup>"+o.colW.map(function(c){return "<col style='width:"+(c/tw*100)+"%'>";}).join("")+"</colgroup>";
+      rows.forEach(function(r){
+        h+="<tr>"+r.map(function(c){
+          return "<td style='height:"+(o.rowH*10)+"cqw;padding:0 .6cqw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:"+fs(.5)+" solid #"+APC.line+";"
+            +"font-size:"+fs(c.size||o.size)+";font-weight:"+(c.bold?700:400)+";color:#"+aprHex(c.color||APC.txt)+";text-align:"+(c.align||"left")+";"
+            +"background:"+(c.fill?"#"+aprHex(c.fill):"#fff")+"'>"+esc(c.t)+"</td>";
+        }).join("")+"</tr>";
+      });
+      out.push(h+"</table>");
+    },
+    html:function(){return out.join("");}
+  };
+}
+function aprCanvasPPT(pptx,s){
+  return {
+    bg:function(c){s.background={color:aprHex(c)};},
+    rect:function(x,y,w,h,o){
+      o=o||{};
+      var opt={x:x,y:y,w:w,h:h,fill:o.fill?{color:aprHex(o.fill),transparency:o.alpha||0}:{type:"none"}};
+      if(o.line)opt.line={color:aprHex(o.line),width:o.lw||.75};
+      if(o.r)opt.rectRadius=o.r;
+      s.addShape(o.r?pptx.ShapeType.roundRect:pptx.ShapeType.rect,opt);
+    },
+    text:function(t,x,y,w,h,o){
+      o=o||{};
+      var runs=aprRuns(t,o).map(function(r){return {text:r.t,options:{fontSize:r.size,bold:r.bold,italic:r.italic,color:aprHex(r.color),breakLine:!!r.br}};});
+      s.addText(runs,{x:x,y:y,w:w,h:h,align:o.align||"left",valign:o.valign||"middle",inset:0,fontFace:APR_FONT,lineSpacingMultiple:1.0});
+    },
+    img:function(src,x,y,w,h){if(src)s.addImage({data:src.replace(/^data:/,""),x:x,y:y,w:w,h:h});},
+    table:function(rows,x,y,o){
+      var tw=o.colW.reduce(function(a,c){return a+c;},0);
+      var r2=rows.map(function(r){return r.map(function(c){
+        var op={bold:!!c.bold,color:aprHex(c.color||APC.txt),align:c.align||"left",valign:"middle",fontSize:c.size||o.size,fontFace:APR_FONT,margin:[0,.06,0,.06],
+          border:{type:"solid",pt:.5,color:APC.line}};
+        op.fill={color:aprHex(c.fill||"FFFFFF")};
+        return {text:String(c.t==null?"":c.t),options:op};
+      });});
+      s.addTable(r2,{x:x,y:y,w:tw,colW:o.colW,rowH:o.rowH,autoPage:false});
+    }
+  };
+}
+
+// Grafico (Chart.js) renderizado fora da tela e convertido em imagem PNG
+function aprChart(cfg,wIn,hIn){
+  if(!cfg||typeof Chart==="undefined")return null;
+  var PXI=150;
+  cfg.options=cfg.options||{};cfg.options.devicePixelRatio=1;
+  var cv=document.createElement("canvas");cv.width=Math.round(wIn*PXI);cv.height=Math.round(hIn*PXI);
+  cv.style.cssText="position:fixed;left:-99999px;top:0";document.body.appendChild(cv);
+  var img=null;
+  try{var ch=new Chart(cv,cfg);img=ch.toBase64Image("image/png");ch.destroy();}catch(e){img=null;}
+  cv.remove();
+  return img;
+}
+
+// ---- Dados do periodo (mesma regra da tela de Relatorios) ----
+function aprDados(){
+  var ano=APR.ano,mes=APR.mes,anual=!mes;
+  var meses=mesesRel(ano);
+  var anoD=meses.map(function(m){return relMes(m);});
+  var acum=relAcum(anoD);
+  var mk=anual?"":ano+"-"+mes;
+  var P=anual?acum:relMes(mk);
+  var grupos=anual?anoD:[P];
+  var per=anual?"Ano de "+ano:MESL[+mes-1]+" de "+ano;
+  var fimP=anual?ano+"-12-31":fimMesStr(mk);if(fimP>hoje())fimP=hoje();
+  // motivos das faltas/atrasos dos colaboradores contados no premio
+  var mot={falta:{},atraso:{}};
+  grupos.forEach(function(g){
+    var ids={};g.linhas.forEach(function(l){ids[l.emp.id]=1;});
+    DB.oc.forEach(function(o){
+      if(!ids[o.eid]||gmk(o.data)!==g.m||!mot[o.tipo])return;
+      var k=lblMotivo(o);mot[o.tipo][k]=(mot[o.tipo][k]||0)+1;
+    });
+  });
+  function top(t){return Object.keys(mot[t]).map(function(k){return {l:k,n:mot[t][k]};}).sort(function(a,b){return b.n-a.n||a.l.localeCompare(b.l);});}
+  var nL=grupos.reduce(function(a,g){return a+g.linhas.length;},0);
+  var potM=grupos.reduce(function(a,g){return a+g.pot;},0);
+  var med=nL?Math.round(potM/nL*100)/100:0;
+  var linhas=P.linhas.slice();
+  var perdas=linhas.filter(function(l){return l.desc>0.004;}).sort(function(a,b){return b.desc-a.desc||a.emp.nome.localeCompare(b.emp.nome);});
+  var ok=linhas.filter(function(l){return l.desc<0.005;}).sort(function(a,b){return a.emp.nome.localeCompare(b.emp.nome);});
+  var selIdx=anual?-1:meses.indexOf(mk);
+  var labels=meses.map(function(m){return MOS[parseInt(m.split("-")[1],10)-1];});
+  return {
+    ano:ano,mes:mes,anual:anual,mk:mk,per:per,P:P,anoD:anoD,acum:acum,meses:meses,labels:labels,selIdx:selIdx,
+    pf:getPct("falta",fimP),pa:getPct("atraso",fimP),ps:getPct("5s",fimP),tem5s:P.ns>0,
+    motF:top("falta"),motA:top("atraso"),med:med,perdas:perdas,ok:ok,nomes:APR.nomes,
+    gerado:new Date().toLocaleDateString("pt-BR"),
+    logoPlaca:window._logoPNG||null,logo:window.LOGO_FERMAR||null,
+    chGP:anoD.length?aprChart(relCfgGP(labels,anoD,1.55,selIdx),9.2,3.55):null,
+    chComp:aprChart(relCfgComp(P,1.25),3.7,3.85)
+  };
+}
+
+// ---- Elementos comuns ----
+function aprHead(cv,D,tit){
+  cv.bg("FFFFFF");
+  cv.rect(0,0,APR_W,.82,{fill:APC.steel});
+  cv.rect(0,.82,APR_W,.05,{fill:APC.bl});
+  if(D.logoPlaca)cv.img(D.logoPlaca,.35,.2,1.93,.42);
+  else cv.text("FERMAR",.35,.15,1.9,.52,{size:22,bold:true,color:"FFFFFF"});
+  cv.text(tit,2.55,.1,5.3,.62,{size:20,bold:true,color:"FFFFFF"});
+  cv.text(D.per,7.9,.1,1.75,.62,{size:10,color:"C9CED6",align:"right"});
+  cv.rect(.35,5.27,APR_W-.7,.01,{fill:APC.line});
+  cv.text("Prêmio Cartão Fermar · "+D.per,.35,5.3,6,.25,{size:8,color:APC.mut});
+  cv.text(D._pg+" / "+D._tot,8.15,5.3,1.5,.25,{size:8,color:APC.mut,align:"right"});
+}
+function aprCard(cv,x,y,w,h,cor,lb,val,sub,valSz){
+  cv.rect(x,y,w,h,{fill:"FFFFFF",line:APC.line,r:.08});
+  cv.rect(x+.08,y,w-.16,.06,{fill:cor});
+  cv.text(lb.toUpperCase(),x+.18,y+.14,w-.3,.3,{size:9,bold:true,color:APC.mut});
+  cv.text(val,x+.18,y+.42,w-.3,.5,{size:valSz||20,bold:true,color:cor});
+  if(sub)cv.text(sub,x+.18,y+h-.4,w-.3,.3,{size:9,color:APC.mut});
+}
+
+// ---- Slides ----
+function aprSCapa(cv,D){
+  var P=D.P;
+  cv.bg(APC.steel);
+  for(var i=0;i<10;i++)cv.rect(i*.66+.2,0,.05,APR_H,{fill:"FFFFFF",alpha:95});
+  cv.rect(6.6,0,3.4,APR_H,{fill:APC.b});
+  cv.rect(6.5,0,.1,APR_H,{fill:APC.bl});
+  if(D.logoPlaca)cv.img(D.logoPlaca,.6,.7,2.76,.6);
+  else cv.text("FERMAR",.6,.65,3,.7,{size:30,bold:true,color:"FFFFFF"});
+  cv.text("Prêmio Cartão Fermar",.6,1.75,5.8,.7,{size:34,bold:true,color:"FFFFFF"});
+  cv.text("Resultado: "+D.per,.6,2.45,5.8,.45,{size:18,bold:true,color:APC.bl});
+  cv.text("Entenda como as faltas e os atrasos impactaram o prêmio e quanto deixamos de ganhar no período.",.6,3.0,5.5,.8,{size:13,color:"C9CED6",valign:"top"});
+  cv.text("Gerado em "+D.gerado,.6,4.95,4,.3,{size:9,color:APC.mut});
+  cv.text("PRÊMIO PAGO",6.85,1.2,2.9,.35,{size:11,bold:true,color:"FFD6D9",align:"center"});
+  cv.text(pct1(P.pctGanho),6.85,1.55,2.9,.95,{size:50,bold:true,color:"FFFFFF",align:"center"});
+  cv.text("do prêmio previsto",6.85,2.5,2.9,.3,{size:11,color:"FFD6D9",align:"center"});
+  cv.rect(7.45,3.05,1.7,.02,{fill:"FFFFFF",alpha:50});
+  cv.text("DEIXAMOS DE GANHAR",6.85,3.25,2.9,.3,{size:11,bold:true,color:"FFD6D9",align:"center"});
+  cv.text(fmtBRL(P.perd),6.85,3.55,2.9,.6,{size:26,bold:true,color:"FFFFFF",align:"center"});
+}
+function aprSRegras(cv,D){
+  aprHead(cv,D,"Como funciona o prêmio");
+  cv.text("Cada ocorrência no mês desconta um percentual do prêmio:",.5,1.0,9,.35,{size:13,bold:true,color:APC.ink});
+  var it=[{lb:"Falta",p:D.pf,c:APC.red},{lb:"Atraso",p:D.pa,c:APC.gld}];
+  if(D.tem5s)it.push({lb:"Infração 5S",p:D.ps,c:APC.pur});
+  var gap=.3,w=(9-gap*(it.length-1))/it.length,y=1.45,h=1.85;
+  it.forEach(function(t,i){
+    var x=.5+i*(w+gap);
+    cv.rect(x,y,w,h,{fill:"FFFFFF",line:APC.line,r:.08});
+    cv.rect(x+.08,y,w-.16,.07,{fill:t.c});
+    cv.text("1 "+t.lb.toLowerCase(),x,y+.15,w,.35,{size:13,bold:true,color:"555555",align:"center"});
+    cv.text("-"+aprP(t.p),x,y+.5,w,.7,{size:38,bold:true,color:t.c,align:"center"});
+    cv.text(D.med>0?[{t:"= -"+fmtBRL(D.med*t.p/100),bold:true,color:t.c,br:true},{t:"em um prêmio de "+fmtBRL(D.med),size:9,color:APC.mut}]:"do prêmio do mês",x+.1,y+1.2,w-.2,.55,{size:11,align:"center"});
+  });
+  cv.rect(.5,3.5,9,.9,{fill:APC.bg,r:.06});
+  cv.text([
+    {t:"•  Os descontos se somam dentro do mês e podem chegar a 100% do prêmio.",br:true},
+    {t:"•  Cada mês começa do zero: mês novo, nova chance de receber o prêmio inteiro."}
+  ],.7,3.5,8.6,.9,{size:12,color:APC.txt});
+  if(D.med>0){
+    var ex=Math.min(100,D.pf+2*D.pa),vd=D.med*ex/100;
+    cv.rect(.5,4.55,9,.55,{fill:"FDE8E9",r:.06});
+    cv.text([{t:"Exemplo: ",bold:true,color:APC.b},{t:"prêmio de "+fmtBRL(D.med)+" com 1 falta e 2 atrasos → desconto de "+aprP(ex)+" → recebe "},{t:fmtBRL(D.med-vd),bold:true,color:APC.grn},{t:" e deixa de ganhar "},{t:fmtBRL(vd),bold:true,color:APC.red}],.7,4.55,8.6,.55,{size:11,color:APC.txt});
+  }
+  cv.text("Percentuais vigentes no período (tela Índices). O prêmio exemplo é a média do período.",.5,5.05,9,.2,{size:7.5,color:APC.mut,italic:true});
+}
+function aprSResultado(cv,D){
+  var P=D.P;
+  aprHead(cv,D,"Resultado do período");
+  var gap=.25,w=(9-gap*3)/4,y=1.1,h=1.3;
+  aprCard(cv,.5,y,w,h,APC.b,"Prêmio previsto",fmtBRL(P.pot),P.linhas.length+" colaborador"+(P.linhas.length!==1?"es":""));
+  aprCard(cv,.5+(w+gap),y,w,h,APC.grn,"Total pago",fmtBRL(P.pago),pct1(P.pctGanho)+" do previsto");
+  aprCard(cv,.5+2*(w+gap),y,w,h,APC.red,"Deixamos de ganhar",fmtBRL(P.perd),pct1(P.pctPerda)+" do previsto");
+  aprCard(cv,.5+3*(w+gap),y,w,h,APC.grn,"Prêmio 100%",D.ok.length+" de "+P.linhas.length,"sem nenhum desconto");
+  cv.text("Para onde foi o prêmio previsto",.5,2.6,9,.35,{size:12,bold:true,color:APC.ink});
+  var bw=9,gw=P.pot>0?bw*P.pago/P.pot:bw,rw=bw-gw;
+  cv.rect(.5,3.0,bw,.55,{fill:APC.line,r:.06});
+  if(gw>.01)cv.rect(.5,3.0,gw,.55,{fill:APC.grn});
+  if(rw>.01)cv.rect(.5+gw,3.0,rw,.55,{fill:APC.red});
+  if(gw>=1.6)cv.text("Pago "+pct1(P.pctGanho),.6,3.0,gw-.2,.55,{size:11,bold:true,color:"FFFFFF"});
+  if(rw>=1.6)cv.text("Perdido "+pct1(P.pctPerda),.5+gw+.1,3.0,rw-.2,.55,{size:11,bold:true,color:"FFFFFF",align:"right"});
+  else if(rw>.01)cv.text("Perdido "+pct1(P.pctPerda),.5,3.58,bw,.25,{size:9,bold:true,color:APC.red,align:"right"});
+  var it=[{lb:"Faltas",v:String(P.nf),s:fmtBRL(P.lf)+" perdidos",c:APC.red},{lb:"Atrasos",v:String(P.na),s:fmtBRL(P.la)+" perdidos",c:APC.gld}];
+  if(D.tem5s)it.push({lb:"Infrações 5S",v:String(P.ns),s:fmtBRL(P.ls)+" perdidos",c:APC.pur});
+  it.push({lb:"Absenteísmo",v:pct1(P.abs),s:P.absF+" falta"+(P.absF!==1?"s":"")+" no período",c:APC.org});
+  var w2=(9-gap*(it.length-1))/it.length;
+  it.forEach(function(t,i){aprCard(cv,.5+i*(w2+gap),3.95,w2,1.2,t.c,t.lb,t.v,t.s,18);});
+}
+function aprSMotivos(cv,D){
+  var P=D.P;
+  aprHead(cv,D,"Por que perdemos");
+  if(P.perd<0.005){
+    cv.text("Parabéns!",.5,1.6,9,.8,{size:36,bold:true,color:APC.grn,align:"center"});
+    cv.text("Ninguém teve desconto no prêmio neste período.",.5,2.4,9,.5,{size:16,color:APC.txt,align:"center"});
+    return;
+  }
+  if(D.chComp)cv.img(D.chComp,.35,1.05,3.7,3.85);
+  var x0=4.3,wt=5.3,it=[{lb:"Faltas",v:P.lf,n:P.nf,c:APC.red,u:"falta",pl:"faltas"},{lb:"Atrasos",v:P.la,n:P.na,c:APC.gld,u:"atraso",pl:"atrasos"}];
+  if(D.tem5s)it.push({lb:"5S",v:P.ls,n:P.ns,c:APC.pur,u:"infração",pl:"infrações"});
+  var gap=.2,w=(wt-gap*(it.length-1))/it.length;
+  it.forEach(function(t,i){
+    var pc=P.perd>0?t.v/P.perd*100:0;
+    aprCard(cv,x0+i*(w+gap),1.1,w,1.35,t.c,t.lb,fmtBRL(t.v),t.n+" "+(t.n!==1?t.pl:t.u)+" · "+aprP(pc)+" da perda",17);
+  });
+  cv.text("Principais motivos registrados",x0,2.65,wt,.35,{size:12,bold:true,color:APC.ink});
+  function lista(arr,x,w,tit,cor){
+    cv.text(tit,x,3.0,w,.28,{size:10,bold:true,color:cor});
+    if(!arr.length){cv.text("Sem registros",x,3.3,w,.3,{size:10,color:APC.mut});return;}
+    var mx=arr[0].n,ls=arr.slice(0,4);
+    ls.forEach(function(m,i){
+      var y=3.32+i*.47;
+      cv.text(m.l,x,y,w-.5,.22,{size:9.5,color:APC.txt});
+      cv.text(String(m.n),x+w-.5,y,.5,.22,{size:9.5,bold:true,color:cor,align:"right"});
+      cv.rect(x,y+.25,w,.1,{fill:APC.line,r:.03});
+      cv.rect(x,y+.25,Math.max(.06,w*m.n/mx),.1,{fill:cor,r:.03});
+    });
+  }
+  lista(D.motF,x0,2.5,"Faltas",APC.red);
+  lista(D.motA,x0+2.8,2.5,"Atrasos",APC.gld);
+}
+function aprSTabela(cv,D,ls,pg,npg,fim){
+  aprHead(cv,D,"Quanto cada um deixou de ganhar"+(npg>1?" ("+pg+"/"+npg+")":""));
+  cv.text("Colaboradores com desconto no período, do maior para o menor valor perdido.",.5,.95,9,.28,{size:10,color:APC.mut});
+  var s5=D.tem5s;
+  var colW=s5?[2.5,.7,.75,.6,1.1,.85,1.3,1.1]:[3.1,.7,.75,1.1,.85,1.3,1.1];
+  var hd=["Colaborador","Faltas","Atrasos"].concat(s5?["5S"]:[]).concat(["Prêmio","Desconto","Deixou de ganhar","Recebeu"]);
+  var H=APC.b;
+  var rows=[hd.map(function(h,i){return {t:h,bold:true,color:"FFFFFF",fill:H,align:i===0?"left":"center"};})];
+  ls.forEach(function(l,i){
+    var f=i%2?"FBF9F9":"FFFFFF";
+    rows.push([{t:l.emp.nome,bold:true,color:APC.b,fill:f},{t:l.f,align:"center",fill:f,color:l.f?APC.red:APC.mut,bold:!!l.f},{t:l.a,align:"center",fill:f,color:l.a?"B07D0A":APC.mut,bold:!!l.a}]
+      .concat(s5?[{t:l.s,align:"center",fill:f,color:l.s?APC.pur:APC.mut,bold:!!l.s}]:[])
+      .concat([{t:fmtBRL(l.val),align:"right",fill:f},{t:"-"+aprP(l.pct),align:"center",fill:f,color:APC.red},{t:"-"+fmtBRL(l.desc),align:"right",fill:f,bold:true,color:APC.red},{t:fmtBRL(l.rec),align:"right",fill:f,bold:true,color:APC.grn}]));
+  });
+  if(fim){
+    var P=D.P,T="FDE8E9";
+    rows.push([{t:"TOTAL ("+D.perdas.length+" colaborador"+(D.perdas.length!==1?"es":"")+")",bold:true,color:APC.b,fill:T},{t:P.nf,align:"center",bold:true,fill:T},{t:P.na,align:"center",bold:true,fill:T}]
+      .concat(s5?[{t:P.ns,align:"center",bold:true,fill:T}]:[])
+      .concat([{t:"",fill:T},{t:"",fill:T},{t:"-"+fmtBRL(D.perdas.reduce(function(a,l){return a+l.desc;},0)),align:"right",bold:true,color:APC.red,fill:T},{t:"",fill:T}]));
+  }
+  cv.table(rows,.5,1.3,{colW:colW,rowH:.3,size:9.5});
+}
+function aprSFaixas(cv,D){
+  aprHead(cv,D,"Quanto deixamos de ganhar");
+  cv.text("Colaboradores agrupados pelo percentual de desconto no período.",.5,.95,9,.28,{size:10,color:APC.mut});
+  var fx=[{l:"Receberam 100% do prêmio",a:-1,b:0},{l:"Desconto de até 15%",a:0,b:15.0001},{l:"Desconto de 15% a 30%",a:15.0001,b:30.0001},{l:"Desconto de 30% a 50%",a:30.0001,b:50.0001},{l:"Desconto acima de 50%",a:50.0001,b:1e9}];
+  var P=D.P,H=APC.b;
+  var rows=[["Faixa de desconto","Colaboradores","Deixaram de ganhar","% do total perdido"].map(function(h,i){return {t:h,bold:true,color:"FFFFFF",fill:H,align:i?"center":"left"};})];
+  fx.forEach(function(f,i){
+    var ls=P.linhas.filter(function(l){var p=l.desc<0.005?0:l.pct;return f.a<0?p===0:(p>f.a&&p<=f.b);});
+    var v=ls.reduce(function(a,l){return a+l.desc;},0),bg=i%2?"FBF9F9":"FFFFFF";
+    rows.push([{t:f.l,bold:true,color:i?APC.ink:APC.grn,fill:bg},{t:ls.length,align:"center",fill:bg,bold:true},{t:v>0.004?"-"+fmtBRL(v):"—",align:"right",fill:bg,color:APC.red,bold:v>0.004},{t:P.perd>0?aprP(v/P.perd*100):"—",align:"center",fill:bg}]);
+  });
+  rows.push([{t:"TOTAL",bold:true,color:APC.b,fill:"FDE8E9"},{t:P.linhas.length,align:"center",bold:true,fill:"FDE8E9"},{t:"-"+fmtBRL(P.perd),align:"right",bold:true,color:APC.red,fill:"FDE8E9"},{t:P.perd>0?"100%":"—",align:"center",bold:true,fill:"FDE8E9"}]);
+  cv.table(rows,.9,1.45,{colW:[3.4,1.4,1.7,1.7],rowH:.42,size:11});
+}
+function aprSEvolucao(cv,D){
+  var A=D.acum;
+  aprHead(cv,D,"Evolução no ano de "+D.ano);
+  cv.text("Valores pagos e perdidos mês a mês (R$) e linha com o % do prêmio recebido.",.5,.95,9,.28,{size:10,color:APC.mut});
+  if(D.chGP)cv.img(D.chGP,.4,1.25,9.2,3.55);
+  cv.rect(.5,4.82,9,.38,{fill:APC.bg,r:.06});
+  cv.text([{t:"Acumulado "+D.ano+":  ",bold:true,color:APC.ink},{t:"previsto "+fmtBRL(A.pot)+"   ·   "},{t:"pago "+fmtBRL(A.pago),bold:true,color:APC.grn},{t:"   ·   "},{t:"deixamos de ganhar "+fmtBRL(A.perd)+" ("+pct1(A.pctPerda)+")",bold:true,color:APC.red}],.7,4.82,8.6,.38,{size:10.5,color:APC.txt});
+}
+function aprSDestaques(cv,D){
+  aprHead(cv,D,"Parabéns! Prêmio 100%");
+  cv.text(D.ok.length+" de "+D.P.linhas.length+" colaboradores receberam o prêmio inteiro, sem nenhuma falta ou atraso descontado.",.5,.95,9,.3,{size:11,bold:true,color:APC.grn});
+  var max=36,ls=D.ok.slice(0,D.ok.length>max?max-1:max);
+  ls.forEach(function(l,i){
+    var c=Math.floor(i/12),r=i%12,x=.6+c*3.05,y=1.4+r*.31;
+    cv.rect(x,y+.08,.14,.14,{fill:APC.grn,r:.04});
+    cv.text(aprNome(l.emp.nome),x+.24,y,2.75,.3,{size:10.5,color:APC.ink});
+  });
+  if(D.ok.length>max){var i=max-1,x=.6+Math.floor(i/12)*3.05,y=1.4+(i%12)*.31;cv.text("+ "+(D.ok.length-ls.length)+" colaboradores",x+.24,y,2.75,.3,{size:10.5,bold:true,color:APC.grn});}
+}
+function aprSFinal(cv,D){
+  var P=D.P;
+  cv.bg(APC.steel);
+  for(var i=0;i<10;i++)cv.rect(i*.66+.2,0,.05,APR_H,{fill:"FFFFFF",alpha:95});
+  cv.rect(0,0,APR_W,.08,{fill:APC.bl});
+  if(D.logoPlaca)cv.img(D.logoPlaca,7.6,.4,1.93,.42);
+  cv.text("Cada dia conta",.6,.5,6.5,.65,{size:30,bold:true,color:"FFFFFF"});
+  cv.text((D.anual?"No ":"Em ")+D.per.toLowerCase()+", a equipe deixou de ganhar",.6,1.25,8.8,.4,{size:15,color:"C9CED6"});
+  cv.text(fmtBRL(P.perd),.6,1.65,8.8,.85,{size:44,bold:true,color:APC.bl});
+  cv.text("Esse valor poderia estar no cartão de cada um de nós.",.6,2.5,8.8,.35,{size:13,color:"C9CED6"});
+  var it=[
+    {t:"Seja pontual",d:"Cada atraso desconta "+aprP(D.pa)+" do prêmio do mês."},
+    {t:"Esteja presente",d:"Cada falta desconta "+aprP(D.pf)+" do prêmio do mês."},
+    {t:"Nova chance todo mês",d:"O desconto zera no mês seguinte. Recomece com 100%."}
+  ];
+  var gap=.3,w=(8.8-gap*2)/3;
+  it.forEach(function(c,i){
+    var x=.6+i*(w+gap);
+    cv.rect(x,3.15,w,1.3,{fill:APC.ink,r:.08});
+    cv.rect(x+.08,3.15,w-.16,.06,{fill:APC.bl});
+    cv.text(c.t,x+.2,3.3,w-.4,.4,{size:14,bold:true,color:"FFFFFF"});
+    cv.text(c.d,x+.2,3.7,w-.4,.65,{size:11,color:"C9CED6",valign:"top"});
+  });
+  cv.text("Dúvidas sobre o seu prêmio? Procure o RH.",.6,4.85,8.8,.35,{size:12,bold:true,color:"FFFFFF"});
+}
+
+// Lista de slides para o periodo
+function aprSlides(D){
+  var sl=[aprSCapa,aprSRegras,aprSResultado,aprSMotivos];
+  if(D.nomes){
+    var por=11,n=Math.ceil(D.perdas.length/por);
+    for(var i=0;i<n;i++)(function(i){sl.push(function(cv,D){aprSTabela(cv,D,D.perdas.slice(i*por,(i+1)*por),i+1,n,i===n-1);});})(i);
+  }else sl.push(aprSFaixas);
+  if(D.anoD.length)sl.push(aprSEvolucao);
+  if(D.nomes&&D.ok.length)sl.push(aprSDestaques);
+  sl.push(aprSFinal);
+  return sl;
+}
+
+// ---- Tela ----
+function aprSet(k,v){
+  if(k==="nomes")APR.nomes=!!v;else APR[k]=v;
+  rApr();
+}
+function aprLimMes(ano){var a=String(new Date().getFullYear());return ano===a?new Date().getMonth()+1:ano>a?0:12;}
+function rApr(){
+  killCH();
+  aprLoadLib(null);
+  var anoAtual=String(new Date().getFullYear());
+  if(!APR.ano)APR.ano=anoAtual;
+  if(APR.mes===null)APR.mes=curMes().slice(5);
+  var lim=aprLimMes(APR.ano);
+  if(APR.mes&&+APR.mes>lim)APR.mes=lim?String(lim).padStart(2,"0"):"";
+  var anos={};anos[anoAtual]=1;DB.oc.forEach(function(o){if(o.data)anos[o.data.slice(0,4)]=1;});
+  var anoOpts=Object.keys(anos).sort().reverse().map(function(a){return "<option value='"+a+"'"+(a===APR.ano?" selected":"")+">"+a+"</option>";}).join("");
+  var mesOpts="<option value=''"+(!APR.mes?" selected":"")+">Ano inteiro (acumulado)</option>";
+  for(var i=1;i<=lim;i++){var v=String(i).padStart(2,"0");mesOpts+="<option value='"+v+"'"+(v===APR.mes?" selected":"")+">"+MESL[i-1]+"</option>";}
+  var selSt="border:none;outline:none;box-shadow:none;font-size:13px;color:"+B+";font-weight:700;background:transparent;width:auto;padding:0";
+  function box(ic,lb,inner){return "<div style='display:flex;align-items:center;gap:6px;background:#fff;border:1.5px solid #e3dfdf;border-radius:8px;padding:.35rem .7rem'><i class='ti "+ic+"' style='color:#888;font-size:15px'></i><span style='font-size:12px;color:#555;font-weight:600'>"+lb+"</span>"+inner+"</div>";}
+
+  var D=aprDados();
+  var vazio=!D.P.linhas.length;
+  var prev="";
+  if(vazio){
+    prev="<div class='card'><div class='empty'><i class='ti ti-presentation-off'></i>Nenhum colaborador com prêmio cadastrado em "+esc(D.per)+".</div></div>";
+  }else{
+    var sl=aprSlides(D);
+    prev="<div class='apr-grid'>"+sl.map(function(fn,i){
+      var cv=aprCanvasHTML();D._pg=i+1;D._tot=sl.length;fn(cv,D);
+      return "<div><div class='apr-n'>Slide "+(i+1)+"</div><div class='apr-sl'>"+cv.html()+"</div></div>";
+    }).join("")+"</div>";
+  }
+  document.getElementById("p-apresentacao").innerHTML=
+    "<div class='pg-hd'><div><h1 class='h1'>Apresentação do Prêmio</h1>"
+    +"<div class='sub'>Slides para explicar aos colaboradores as perdas com faltas e atrasos &middot; "+esc(D.per)+"</div></div>"
+    +"<button class='btnp btn-ic' id='apr-btn' onclick='baixarApresentacao()'"+(vazio?" disabled":"")+"><i class='ti ti-presentation'></i>Baixar PowerPoint (.pptx)</button></div>"
+    +"<div style='display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:1.1rem'>"
+    +box("ti-calendar","Ano:","<select id='apr-ano' onchange=\"aprSet('ano',this.value)\" style='"+selSt+"'>"+anoOpts+"</select>")
+    +box("ti-calendar-event","Mês:","<select id='apr-mes' onchange=\"aprSet('mes',this.value)\" style='"+selSt+"'>"+mesOpts+"</select>")
+    +"<label style='display:flex;align-items:center;gap:6px;background:#fff;border:1.5px solid #e3dfdf;border-radius:8px;padding:.4rem .7rem;font-size:12px;color:#555;font-weight:600;cursor:pointer'>"
+    +"<input type='checkbox' onchange=\"aprSet('nomes',this.checked)\""+(APR.nomes?" checked":"")+" style='accent-color:"+BL+"'>Mostrar nomes dos colaboradores</label>"
+    +"</div>"
+    +prev;
+}
+function baixarApresentacao(){
+  var btn=document.getElementById("apr-btn");
+  if(btn){btn.disabled=true;btn.innerHTML="<span class='spin'></span>Gerando...";}
+  function fim(){if(btn){btn.disabled=false;btn.innerHTML="<i class='ti ti-presentation'></i>Baixar PowerPoint (.pptx)";}}
+  aprLoadLib(function(){
+    try{
+      var D=aprDados();
+      if(!D.P.linhas.length){alert("Nenhum colaborador com prêmio no período.");fim();return;}
+      var pptx=new window.PptxGenJS();
+      pptx.layout="LAYOUT_16x9";
+      pptx.author="C@P Consultoria";pptx.company="Fermar";
+      pptx.title="Prêmio Cartão Fermar - "+D.per;
+      var sl=aprSlides(D);
+      sl.forEach(function(fn,i){var s=pptx.addSlide();D._pg=i+1;D._tot=sl.length;fn(aprCanvasPPT(pptx,s),D);});
+      var nome="apresentacao-premio-fermar-"+(D.anual?D.ano:D.mk)+".pptx";
+      Promise.resolve(pptx.writeFile({fileName:nome})).then(fim,function(e){alert("Erro ao gerar a apresentação: "+(e&&e.message||e));fim();});
+    }catch(e){alert("Erro ao gerar a apresentação: "+e.message);fim();}
+  });
+  setTimeout(function(){if(!window.PptxGenJS)fim();},15000);
 }
 
 </script>
